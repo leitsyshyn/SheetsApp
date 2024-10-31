@@ -8,6 +8,7 @@ namespace SheetsApp
 {
     public partial class MainPage : ContentPage
     {
+        public Grid MainGrid => grid;
         const int CountColumn = 26; 
         const int CountRow = 10; 
 
@@ -59,7 +60,7 @@ namespace SheetsApp
             Grid.SetColumn(entry, column);
             return entry;
         }
-        private Entry GetEntryAt(int row, int column)
+        internal Entry GetEntryAt(int row, int column)
         {
             foreach (var child in grid.Children)
             {
@@ -327,7 +328,7 @@ namespace SheetsApp
                 }
             }
         }
-        private void AddRowButton_Clicked(object sender, EventArgs e)
+        internal void AddRowButton_Clicked(object sender, EventArgs e)
         {
             int newRow = grid.RowDefinitions.Count;
             AddRow(newRow);
