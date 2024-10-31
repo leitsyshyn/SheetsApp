@@ -14,9 +14,6 @@ namespace SheetsApp
         private Dictionary<(int, int), Cell> cells = new Dictionary<(int, int), Cell>();
 
         private Entry lastEntryFocused;
-
-        private HashSet<string> visiting = new HashSet<string>();
-
         public MainPage()
         {
             InitializeComponent();
