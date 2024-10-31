@@ -14,10 +14,10 @@ expression
     | number                                   # NumberExpr
     ;
 
-number      : DIGIT+ ('.' DIGIT+)?;
-cell        : LETTER+ DIGIT+;
+number      : DIGIT+(('.'|',')DIGIT+)?;
+cell        : LETTER+DIGIT+;
  
-DIGIT       : [0-9] ;
-LETTER      : [A-Z] ;
+DIGIT       : [0-9];
+LETTER      : [A-Z];
 
 WS          : [ \t\r\n]+ -> skip ; // Ignore whitespace

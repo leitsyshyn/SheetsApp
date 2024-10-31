@@ -5,19 +5,22 @@ namespace SheetsApp
     public class SheetsAppVisitor : SheetsBaseVisitor<double>
     {
         private List<Cell> cells;
+        private Cell currentCell = null;
         public SheetsAppVisitor(Dictionary<(int, int), Cell> cells)
         {
             this.cells = new List<Cell>(cells.Values);
         }
-        public double Eval(string input)
+        public double Eval(Cell cell)
         {
-            var inputStream = new AntlrInputStream(input);
+            currentCell = cell;
+            var inputStream = new AntlrInputStream(cell.Expression);
             var lexer = new SheetsLexer(inputStream);
             var tokens = new CommonTokenStream(lexer);
             var parser = new SheetsParser(tokens);
             var tree = parser.expression();
             return Visit(tree);
         }
+
         public override double VisitPowerExpr(SheetsParser.PowerExprContext context)
         {
             var left = Visit(context.expression(0));
@@ -83,6 +86,11 @@ namespace SheetsApp
         public override double VisitCellExpr(SheetsParser.CellExprContext context)
         {
             string cellName = context.GetText();
+            var cell = cells.Find(c => c.Name == cellName);
+
+            if (!cell.Dependents.Contains(currentCell)){
+                cell.Dependents.Add(currentCell);
+            }
 
             if (evaluatedValues.ContainsKey(cellName))
             {
@@ -95,11 +103,9 @@ namespace SheetsApp
             }
 
             visiting.Add(cellName);
-
-            var cell = cells.Find(c => c.Name == cellName);
             if (cell is not null)
             {
-                double result = Eval(cell.Expression);
+                double result = Eval(cell);
 
                 evaluatedValues[cellName] = result;
 
@@ -115,7 +121,13 @@ namespace SheetsApp
         }
         public override double VisitNumberExpr(SheetsParser.NumberExprContext context)
         {
-            return double.Parse(context.GetText());
+            if (double.TryParse(context.GetText(), System.Globalization.NumberStyles.Float,
+                     System.Globalization.CultureInfo.InvariantCulture, out double result))
+            {
+                return result;
+            }
+
+            return 0;
         }
     }
 }

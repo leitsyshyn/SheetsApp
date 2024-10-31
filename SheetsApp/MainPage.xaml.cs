@@ -15,7 +15,8 @@ namespace SheetsApp
 
         private Entry lastEntryFocused;
 
-   
+        private HashSet<string> visiting = new HashSet<string>();
+
         public MainPage()
         {
             InitializeComponent();
@@ -140,6 +141,27 @@ namespace SheetsApp
 
 
         }
+        private void UpdateDependants(Cell cell)
+        {
+            foreach (var dependant in cell.Dependents)
+            {
+                if (visiting.Contains(dependant.Name))
+                    continue;
+
+                visiting.Add(dependant.Name);
+                dependant.Value = new SheetsAppVisitor(cells).Eval(dependant).ToString();
+                var dependantCoords = cells.FirstOrDefault(kv => kv.Value == dependant).Key;
+                var entry = GetEntryAt(dependantCoords.Item1, dependantCoords.Item2);
+                if (entry != null)
+                {
+                    entry.TextChanged -= OnEntryTextChanged;
+                    entry.Text = dependant.Value;
+                    entry.TextChanged += OnEntryTextChanged;
+                }
+                UpdateDependants(dependant);
+                visiting.Remove(dependant.Name);
+            }
+        }
         private void OnEntryFocused(object sender, FocusEventArgs e)
         {
             lastEntryFocused = (Entry)sender;
@@ -151,18 +173,21 @@ namespace SheetsApp
         private void OnEntryUnfocused(object sender, FocusEventArgs e)
         {
             var cell = cells[(grid.GetRow(lastEntryFocused), grid.GetColumn(lastEntryFocused))];
+
             var visitor = new SheetsAppVisitor(cells);
             if (cell.Expression != "")
             {
                 try
                 {
-                    cell.Value = visitor.Eval(cell.Expression).ToString();
+                    cell.Value = visitor.Eval(cell).ToString();
                 }
                 catch (Exception ex)
                 {
                     cell.Value = "ERR";
                 }
             }
+
+            UpdateDependants(cell);
 
             lastEntryFocused.TextChanged -= OnEntryTextChanged;
             lastEntryFocused.Text = cell.Value; 
@@ -329,10 +354,6 @@ namespace SheetsApp
                 DeleteColumn(lastColumnIndex);
             }
         }
-        private void CalculateButton_Clicked(object sender, EventArgs e)
-        {
-     
-        }
         private void SaveButton_Clicked(object sender, EventArgs e)
         {
             SaveFile(CancellationToken.None);
@@ -405,7 +426,7 @@ namespace SheetsApp
         }
         private async void HelpButton_Clicked(object sender, EventArgs e)
         {
-            await DisplayAlert("Довідка", "Лабораторна робота з ООП №1\nСтудента групи К24\nТимофія ЛЕЙЦИШИНА",
+            await DisplayAlert("Довідка", "Лабораторна робота з ООП №1\nСтудента групи К24\nТимофія ЛЕЙЦИШИНА\nВаріант 8) 1,3,4,5\n+, -, *, / (бінарні операції)\n+, - (унарні операції)\n^ (піднесення у степінь)\n++, -- (inc, dec)",
             "OK");
         }
         private async void ExitButton_Clicked(object sender, EventArgs e)
