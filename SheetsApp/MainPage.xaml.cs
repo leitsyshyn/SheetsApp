@@ -9,8 +9,11 @@ namespace SheetsApp
     public partial class MainPage : ContentPage
     {
         public Grid MainGrid => grid;
-        const int CountColumn = 26; 
-        const int CountRow = 10; 
+        const int CountColumn = 10; 
+        const int CountRow = 10;
+
+        private bool isDirty = false;
+
 
         private Dictionary<(int, int), Cell> cells = new Dictionary<(int, int), Cell>();
 
@@ -28,6 +31,7 @@ namespace SheetsApp
         {
             AddColumnsAndColumnLabels();
             AddRowsAndCellEntries();
+            isDirty = false;
         }
         private Label CreateLabel(string text, int row, int column)
         {
@@ -139,7 +143,7 @@ namespace SheetsApp
                 var entry = CreateCellEntry(newRow, col + 1);
                 grid.Children.Add(entry);
             }
-
+            isDirty = true;
 
         }
         private void UpdateDependants(Cell cell)
@@ -150,19 +154,50 @@ namespace SheetsApp
                     continue;
 
                 visiting.Add(dependant.Name);
-                dependant.Value = new SheetsAppVisitor(cells).Eval(dependant).ToString();
-                var dependantCoords = cells.FirstOrDefault(kv => kv.Value == dependant).Key;
-                var entry = GetEntryAt(dependantCoords.Item1, dependantCoords.Item2);
-                if (entry != null)
+                try
                 {
-                    entry.TextChanged -= OnEntryTextChanged;
-                    entry.Text = dependant.Value;
-                    entry.TextChanged += OnEntryTextChanged;
+                    if (cell.Value == "ERR" && dependant.Expression.Contains(cell.Name))
+                    {
+                        dependant.Value = "ERR";
+                    }
+                    else
+                    {
+                        dependant.Value = new SheetsAppVisitor(cells).Eval(dependant).ToString();
+                    }
+
+                    var dependantCoords = cells.FirstOrDefault(kv => kv.Value == dependant).Key;
+                    var entry = GetEntryAt(dependantCoords.Item1, dependantCoords.Item2);
+                    if (entry != null)
+                    {
+                        entry.TextChanged -= OnEntryTextChanged;
+                        entry.Text = dependant.Value;
+                        entry.TextChanged += OnEntryTextChanged;
+                    }
                 }
+                catch (Exception ex)
+                {
+                    if (dependant.Expression.Contains(cell.Name))
+                    {
+                        dependant.Value = "ERR";
+
+                        var dependantCoords = cells.FirstOrDefault(kv => kv.Value == dependant).Key;
+                        var entry = GetEntryAt(dependantCoords.Item1, dependantCoords.Item2);
+                        if (entry != null)
+                        {
+                            entry.TextChanged -= OnEntryTextChanged;
+                            entry.Text = dependant.Value;
+                            entry.TextChanged += OnEntryTextChanged;
+                        }
+                    }
+                }
+
                 UpdateDependants(dependant);
+
                 visiting.Remove(dependant.Name);
             }
         }
+
+
         private void OnEntryFocused(object sender, FocusEventArgs e)
         {
             lastEntryFocused = (Entry)sender;
@@ -187,6 +222,8 @@ namespace SheetsApp
                     cell.Value = "ERR";
                 }
             }
+    
+            
 
             UpdateDependants(cell);
 
@@ -200,6 +237,7 @@ namespace SheetsApp
             textInput.Text = e.NewTextValue;
             var cell = cells[(grid.GetRow(lastEntryFocused), grid.GetColumn(lastEntryFocused))];
             cell.Expression = e.NewTextValue;
+            isDirty = true;
         }
         private void OnTextInputTextChanged(object sender, TextChangedEventArgs e)
         {
@@ -233,6 +271,7 @@ namespace SheetsApp
                 var entry = CreateCellEntry(row + 1, newColumn);
                 grid.Children.Add(entry);
             }
+            isDirty = true;
         }
         private void DeleteRow(int lastRowIndex)
         {
@@ -240,20 +279,68 @@ namespace SheetsApp
             {
                 return;
             }
-            RemoveGridElements(child => grid.GetRow(child) == lastRowIndex);
 
+            foreach (var key in cells.Keys.Where(k => k.Item1 == lastRowIndex).ToList())
+            {
+                cells.Remove(key);
+            }
+
+            var updatedCells = new Dictionary<(int, int), Cell>();
+            foreach (var kvp in cells)
+            {
+                var (row, col) = kvp.Key;
+                if (row > lastRowIndex)
+                {
+                    updatedCells[(row - 1, col)] = kvp.Value;
+                    kvp.Value.Name = GetCellName(row - 1, col); 
+                }
+                else
+                {
+                    updatedCells[(row, col)] = kvp.Value;
+                }
+            }
+            cells = updatedCells;
+
+            RemoveGridElements(child => grid.GetRow(child) == lastRowIndex);
             grid.RowDefinitions.RemoveAt(lastRowIndex);
+            isDirty = true;
         }
+
+
         private void DeleteColumn(int lastColumnIndex)
         {
             if (lastColumnIndex < 2)
             {
                 return;
-            }   
-            RemoveGridElements(child => grid.GetColumn(child) == lastColumnIndex);
+            }
 
+            foreach (var key in cells.Keys.Where(k => k.Item2 == lastColumnIndex).ToList())
+            {
+                cells.Remove(key);
+            }
+
+            var updatedCells = new Dictionary<(int, int), Cell>();
+            foreach (var kvp in cells)
+            {
+                var (row, col) = kvp.Key;
+                if (col > lastColumnIndex)
+                {
+                    updatedCells[(row, col - 1)] = kvp.Value;
+                    kvp.Value.Name = GetCellName(row, col - 1); 
+                }
+                else
+                {
+                    updatedCells[(row, col)] = kvp.Value;
+                }
+            }
+            cells = updatedCells;
+
+            RemoveGridElements(child => grid.GetColumn(child) == lastColumnIndex);
             grid.ColumnDefinitions.RemoveAt(lastColumnIndex);
+            isDirty = true;
         }
+
+
         private void AddColumnsAndColumnLabels()
         {
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -286,16 +373,11 @@ namespace SheetsApp
                 {
                     var worksheet = workbook.Worksheets.Add("Sheet1");
 
-                    for (int row = 1; row <= grid.RowDefinitions.Count; row++)
+                    foreach (var cellEntry in cells)
                     {
-                        for (int col = 1; col <= grid.ColumnDefinitions.Count; col++)
-                        {
-                            var entry = GetEntryAt(row, col);
-                            if (entry != null && !string.IsNullOrEmpty(entry.Text))
-                            {
-                                worksheet.Cell(row, col).Value = entry.Text;
-                            }
-                        }
+                        int row = cellEntry.Key.Item1;
+                        int col = cellEntry.Key.Item2;
+                        worksheet.Cell(row, col).Value = cellEntry.Value.Expression;
                     }
 
                     using (var stream = new MemoryStream())
@@ -304,7 +386,7 @@ namespace SheetsApp
                         stream.Position = 0;
 
                         var fileSaverResult = await FileSaver.Default.SaveAsync("sheet.xlsx", stream, cancellationToken);
-
+                        isDirty = false;
                         return fileSaverResult != null;
                     }
                 }
@@ -315,8 +397,13 @@ namespace SheetsApp
                 return false;
             }
         }
+
+
         private async Task AskToSave()
         {
+            if (!isDirty)
+                return;
+
             bool answer = await DisplayAlert("Підтвердження", "Зберегти поточну таблицю?", "Так", "Ні");
             if (answer)
             {
@@ -368,7 +455,7 @@ namespace SheetsApp
             CreateGrid();
         }
 
-        
+
         private async void ReadButton_Clicked(object sender, EventArgs e)
         {
             await AskToSave();
@@ -394,7 +481,13 @@ namespace SheetsApp
                         using (var workbook = new XLWorkbook(stream))
                         {
                             var worksheet = workbook.Worksheet(1);
-                            ClearGrid();
+
+                            grid.Children.Clear();
+                            grid.RowDefinitions.Clear();
+                            grid.ColumnDefinitions.Clear();
+                            cells.Clear();
+
+                            CreateGrid();
 
                             for (int row = 1; row <= worksheet.LastRowUsed().RowNumber(); row++)
                             {
@@ -409,13 +502,32 @@ namespace SheetsApp
                                     {
                                         AddColumn(grid.ColumnDefinitions.Count);
                                     }
+
+                                    var cellExpression = worksheet.Cell(row, col).GetString();
+                                    var cellKey = (row, col);
+
+                                    if (!cells.ContainsKey(cellKey))
+                                    {
+                                        cells[cellKey] = new Cell(GetCellName(row, col), cellExpression, "");
+                                    }
+                                    else
+                                    {
+                                        cells[cellKey].Expression = cellExpression;
+                                        cells[cellKey].Value = ""; 
+                                    }
+
                                     var entry = GetEntryAt(row, col);
                                     if (entry != null)
                                     {
-                                        entry.Text = worksheet.Cell(row, col).GetString();
+                                        entry.TextChanged -= OnEntryTextChanged;
+                                        entry.Text = cellExpression; 
+                                        entry.TextChanged += OnEntryTextChanged;
                                     }
                                 }
                             }
+
+                            RecalculateAllValues();
+                            isDirty = false;
                         }
                     }
                 }
@@ -425,9 +537,39 @@ namespace SheetsApp
                 }
             }
         }
+
+
+        private void RecalculateAllValues()
+        {
+            foreach (var cell in cells.Values)
+            {
+                try
+                {
+                    if (!string.IsNullOrEmpty(cell.Expression))
+                    {
+                        cell.Value = new SheetsAppVisitor(cells).Eval(cell).ToString();
+                    }
+                }
+                catch
+                {
+                    cell.Value = "ERR";
+                }
+
+                var cellCoords = cells.FirstOrDefault(kv => kv.Value == cell).Key;
+                var entry = GetEntryAt(cellCoords.Item1, cellCoords.Item2);
+                if (entry != null)
+                {
+                    entry.TextChanged -= OnEntryTextChanged;
+                    entry.Text = cell.Value;
+                    entry.TextChanged += OnEntryTextChanged;
+                }
+            }
+        }
+
+
         private async void HelpButton_Clicked(object sender, EventArgs e)
         {
-            await DisplayAlert("Довідка", "Лабораторна робота з ООП №1\nСтудента групи К24\nТимофія ЛЕЙЦИШИНА\nВаріант 8) 1,3,4,5\n+, -, *, / (бінарні операції)\n+, - (унарні операції)\n^ (піднесення у степінь)\n++, -- (inc, dec)",
+            await DisplayAlert("Довідка", "Лабораторна робота з ООП №1\nСтудента групи К24\nТимофія ЛЕЙЦИШИНА\nВаріант 8) 1,3,4,5\n+, -, *, / (бінарні операції)\n+, - (унарні операції)\n^ (піднесення у степінь)\ninc(), dec()",
             "OK");
         }
         private async void ExitButton_Clicked(object sender, EventArgs e)

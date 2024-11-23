@@ -43,6 +43,18 @@ public interface ISheetsListener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitIncrementExpr([NotNull] SheetsParser.IncrementExprContext context);
 	/// <summary>
+	/// Enter a parse tree produced by the <c>AffirmExpr</c>
+	/// labeled alternative in <see cref="SheetsParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterAffirmExpr([NotNull] SheetsParser.AffirmExprContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>AffirmExpr</c>
+	/// labeled alternative in <see cref="SheetsParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitAffirmExpr([NotNull] SheetsParser.AffirmExprContext context);
+	/// <summary>
 	/// Enter a parse tree produced by the <c>PowerExpr</c>
 	/// labeled alternative in <see cref="SheetsParser.expression"/>.
 	/// </summary>

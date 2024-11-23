@@ -73,6 +73,11 @@ namespace SheetsApp
             var value = Visit(context.expression());
             return -value;
         }
+        public override double VisitAffirmExpr(SheetsParser.AffirmExprContext context)
+        {
+            var value = Visit(context.expression());
+            return value;
+        }
 
         public override double VisitParenExpr(SheetsParser.ParenExprContext context)
         {
@@ -88,7 +93,14 @@ namespace SheetsApp
             string cellName = context.GetText();
             var cell = cells.Find(c => c.Name == cellName);
 
-            if (!cell.Dependents.Contains(currentCell)){
+            if (cell == null)
+            {
+                visiting.Remove(cellName);
+                throw new Exception($"Клітина {cellName} не знайдена");
+            }
+
+            if (!cell.Dependents.Contains(currentCell))
+            {
                 cell.Dependents.Add(currentCell);
             }
 
@@ -103,25 +115,27 @@ namespace SheetsApp
             }
 
             visiting.Add(cellName);
-            if (cell is not null)
+            try
             {
                 double result = Eval(cell);
-
                 evaluatedValues[cellName] = result;
-
-                visiting.Remove(cellName);
-
                 return result;
             }
-            else
+            catch
+            {
+                evaluatedValues[cellName] = double.NaN; 
+                throw;
+            }
+            finally
             {
                 visiting.Remove(cellName);
-                throw new Exception($"Клітина {cellName} не знайдена");
             }
+
         }
         public override double VisitNumberExpr(SheetsParser.NumberExprContext context)
         {
-            if (double.TryParse(context.GetText(), System.Globalization.NumberStyles.Float,
+            string text = context.GetText().Replace(',', '.'); 
+            if (double.TryParse(text, System.Globalization.NumberStyles.Float,
                      System.Globalization.CultureInfo.InvariantCulture, out double result))
             {
                 return result;
@@ -129,5 +143,6 @@ namespace SheetsApp
 
             return 0;
         }
+
     }
 }

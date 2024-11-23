@@ -50,6 +50,20 @@ public partial class SheetsBaseListener : ISheetsListener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitIncrementExpr([NotNull] SheetsParser.IncrementExprContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by the <c>AffirmExpr</c>
+	/// labeled alternative in <see cref="SheetsParser.expression"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterAffirmExpr([NotNull] SheetsParser.AffirmExprContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>AffirmExpr</c>
+	/// labeled alternative in <see cref="SheetsParser.expression"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitAffirmExpr([NotNull] SheetsParser.AffirmExprContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by the <c>PowerExpr</c>
 	/// labeled alternative in <see cref="SheetsParser.expression"/>.
 	/// <para>The default implementation does nothing.</para>

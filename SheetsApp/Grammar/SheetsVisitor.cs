@@ -39,6 +39,13 @@ public interface ISheetsVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitIncrementExpr([NotNull] SheetsParser.IncrementExprContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>AffirmExpr</c>
+	/// labeled alternative in <see cref="SheetsParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitAffirmExpr([NotNull] SheetsParser.AffirmExprContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>PowerExpr</c>
 	/// labeled alternative in <see cref="SheetsParser.expression"/>.
 	/// </summary>

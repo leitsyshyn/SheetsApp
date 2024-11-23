@@ -6,9 +6,10 @@ expression
     | expression '/' expression                # DivideExpr
     | expression '+' expression                # AddExpr
     | expression '-' expression                # SubtractExpr
-    | '--' expression                          # DecrementExpr
-    | '++' expression                          # IncrementExpr
+    | 'dec(' expression ')'                    # DecrementExpr
+    | 'inc(' expression ')'                    # IncrementExpr
     | '-' expression                           # NegateExpr
+    | '+' expression                           # AffirmExpr
     | '(' expression ')'                       # ParenExpr
     | cell                                     # CellExpr
     | number                                   # NumberExpr
@@ -20,4 +21,4 @@ cell        : LETTER+DIGIT+;
 DIGIT       : [0-9];
 LETTER      : [A-Z];
 
-WS          : [ \t\r\n]+ -> skip ; // Ignore whitespace
+WS          : [ \t\r\n]+ -> skip ; 
